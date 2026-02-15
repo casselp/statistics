@@ -68,7 +68,7 @@ st.divider()
 st.header("2. Analysis Parameters")
 b_col1, b_col2 = st.columns(2)
 
-# Specific Boundary Defaults based on Prompt requirements
+# Specific Boundary Defaults
 if not is_inverse:
     if dist_name != "Chi-Square":
         v_low_def, v_high_def = -1.000, 1.000
@@ -86,19 +86,18 @@ try:
     else: dist = stats.chi2(df)
 
     v1_plot, v2_plot = None, None
-    # STARTUP REQUIREMENT: Default Bound Type to Lower
+    # Requirement: Default Bound Type to Lower (Area >= x)
     bound_choice = "Lower" 
 
     if is_inverse and dist_name == "Chi-Square":
         with b_col1:
-            # UNIDIRECTIONAL: Phrase appears ABOVE input
             if prob_mode == "Unidirectional":
-                st.markdown(r"$\alpha$ represents the area to the right of the critical value.")
+                # Requirement: Explanation in blue box BELOW input
                 alpha_val = st.number_input(r"Probability, $\alpha$", value=0.050, format="%.3f", key=f"alpha_uni_{st.session_state.reset_key}")
+                st.info(r"$\alpha$ represents the area to the right of the critical value.")
                 v1_plot = dist.ppf(1 - alpha_val)
                 bound_choice = "Lower" 
             
-            # AND/OR: Alpha input first, then explanatory phrase BELOW
             elif prob_mode == "AND":
                 alpha_val = st.number_input(r"Probability, $\alpha$", value=0.050, format="%.3f", key=f"alpha_and_{st.session_state.reset_key}")
                 st.info(r"The area remaining in each tail is $1/2 \alpha$.")
@@ -185,13 +184,21 @@ try:
     # --- 4. EXPORTS ---
     st.divider()
     st.subheader("📁 Save Results")
-    file_name = st.text_input("Enter filename (no extension):", value="stat_results")
-    
+    user_filename = st.text_input("Enter filename (no extension):", value="stat_results", key="file_name_input")
+    clean_fn = user_filename.strip() if user_filename.strip() else "stat_results"
+
     e1, e2, e3 = st.columns(3)
     with e1:
         img_buf = io.BytesIO()
         fig.savefig(img_buf, format="png", dpi=300, bbox_inches='tight')
-        st.download_button("💾 Download Image", img_buf.getvalue(), f"{file_name}.png", "image/png")
+        # Fix: Dynamic key based on filename ensures the download button refreshes with the new name
+        st.download_button(
+            label="💾 Download Image",
+            data=img_buf.getvalue(),
+            file_name=f"{clean_fn}.png",
+            mime="image/png",
+            key=f"dl_btn_img_{clean_fn}_{st.session_state.reset_key}"
+        )
     
     with e2:
         pdf_buf = io.BytesIO()
@@ -208,7 +215,13 @@ try:
             new_ax.set_xticklabels(labels, rotation=90)
             pdf.savefig(pdf_fig)
             plt.close(pdf_fig)
-        st.download_button("📄 Download PDF", pdf_buf.getvalue(), f"{file_name}.pdf", "application/pdf")
+        st.download_button(
+            label="📄 Download PDF", 
+            data=pdf_buf.getvalue(), 
+            file_name=f"{clean_fn}.pdf", 
+            mime="application/pdf",
+            key=f"dl_btn_pdf_{clean_fn}_{st.session_state.reset_key}"
+        )
     
     with e3:
         st.button("🔄 Reset to Defaults", on_click=reset_app)
