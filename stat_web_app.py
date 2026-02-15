@@ -3,7 +3,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy import stats
 import io
-import pandas as pd
 from matplotlib.backends.backend_pdf import PdfPages
 
 # 1. Page Configuration
@@ -41,8 +40,6 @@ is_inverse = "Inverse" in calc_mode
 
 # --- DYNAMIC DEFAULTS ENGINE ---
 p_col1, p_col2, p_col3 = st.columns(3)
-
-# Default Sample Sizes
 default_n = 25 if dist_name == "Student's t" else 10
 
 with p_col1:
@@ -68,7 +65,7 @@ st.divider()
 st.header("2. Analysis Parameters")
 b_col1, b_col2 = st.columns(2)
 
-# Specific Boundary Defaults
+# Determine Defaults based on conditions
 if not is_inverse:
     if dist_name != "Chi-Square":
         v_low_def, v_high_def = -1.000, 1.000
@@ -86,23 +83,19 @@ try:
     else: dist = stats.chi2(df)
 
     v1_plot, v2_plot = None, None
-    # Requirement: Default Bound Type to Lower (Area >= x)
     bound_choice = "Lower" 
 
     if is_inverse and dist_name == "Chi-Square":
         with b_col1:
             if prob_mode == "Unidirectional":
-                # Requirement: Explanation in blue box BELOW input
                 alpha_val = st.number_input(r"Probability, $\alpha$", value=0.050, format="%.3f", key=f"alpha_uni_{st.session_state.reset_key}")
                 st.info(r"$\alpha$ represents the area to the right of the critical value.")
                 v1_plot = dist.ppf(1 - alpha_val)
                 bound_choice = "Lower" 
-            
             elif prob_mode == "AND":
                 alpha_val = st.number_input(r"Probability, $\alpha$", value=0.050, format="%.3f", key=f"alpha_and_{st.session_state.reset_key}")
                 st.info(r"The area remaining in each tail is $1/2 \alpha$.")
                 v1_plot, v2_plot = dist.ppf(alpha_val/2), dist.ppf(1 - alpha_val/2)
-                
             elif prob_mode == "OR":
                 alpha_val = st.number_input(r"Probability, $\alpha$", value=0.050, format="%.3f", key=f"alpha_or_{st.session_state.reset_key}")
                 st.info(r"The shaded area in each tail is $1/2 \alpha$.")
@@ -124,22 +117,23 @@ try:
                     alpha = 1 - conf_c
                     v1_plot, v2_plot = dist.ppf(alpha/2), dist.ppf(1 - alpha/2)
                 else:
-                    v1_plot = st.number_input("Lower Value (x)", value=v_low_def, format="%.3f", key=f"vlow_{dist_name}_{st.session_state.reset_key}")
-                    v2_plot = st.number_input("Upper Value (x)", value=v_high_def, format="%.3f", key=f"vhigh_{dist_name}_{st.session_state.reset_key}")
+                    v1_plot = st.number_input("Lower Value(x)", value=v_low_def, format="%.3f", key=f"vlow_{dist_name}_{st.session_state.reset_key}")
+                    v2_plot = st.number_input("Upper Value(x)", value=v_high_def, format="%.3f", key=f"vhigh_{dist_name}_{st.session_state.reset_key}")
 
             elif prob_mode == "OR":
                 if is_inverse:
                     v1_plot_area = st.number_input("Left-tail Area", value=0.025, format="%.3f", key=f"larea_{dist_name}_{st.session_state.reset_key}")
-                    v2_plot_area = st.number_input("Right-tail Area", value=0.025, format="%.3f", key=f"rarea_{dist_name}_{st.session_state.reset_key}")
-                    v1_plot, v2_plot = dist.ppf(v1_plot_area), dist.ppf(1 - v2_plot_area)
+                    v1_plot = dist.ppf(v1_plot_area)
                 else:
-                    st.write("**Left-tail Bound (x)**")
-                    v1_plot = st.number_input("LB", value=v_low_def, format="%.3f", key=f"v1or_{dist_name}_{st.session_state.reset_key}", label_visibility="collapsed")
+                    v1_plot = st.number_input("Left-tail Bound(x)", value=v_low_def, format="%.3f", key=f"v1or_{dist_name}_{st.session_state.reset_key}")
 
         with b_col2:
-            if prob_mode == "OR" and not is_inverse:
-                st.write("**Right-tail Bound (x)**")
-                v2_plot = st.number_input("RB", value=v_high_def, format="%.3f", key=f"v2or_{dist_name}_{st.session_state.reset_key}", label_visibility="collapsed")
+            if prob_mode == "OR":
+                if is_inverse:
+                    v2_plot_area = st.number_input("Right-tail Area", value=0.025, format="%.3f", key=f"rarea_{dist_name}_{st.session_state.reset_key}")
+                    v2_plot = dist.ppf(1 - v2_plot_area)
+                else:
+                    v2_plot = st.number_input("Right-tail Bound(x)", value=v_high_def, format="%.3f", key=f"v2or_{dist_name}_{st.session_state.reset_key}")
 
     # --- 3. GRAPHICAL AREA ---
     fig, ax = plt.subplots(figsize=(10, 5))
@@ -191,7 +185,6 @@ try:
     with e1:
         img_buf = io.BytesIO()
         fig.savefig(img_buf, format="png", dpi=300, bbox_inches='tight')
-        # Fix: Dynamic key based on filename ensures the download button refreshes with the new name
         st.download_button(
             label="💾 Download Image",
             data=img_buf.getvalue(),
@@ -199,7 +192,6 @@ try:
             mime="image/png",
             key=f"dl_btn_img_{clean_fn}_{st.session_state.reset_key}"
         )
-    
     with e2:
         pdf_buf = io.BytesIO()
         with PdfPages(pdf_buf) as pdf:
@@ -207,7 +199,6 @@ try:
             plt.figtext(0.1, 0.9, f"Stat Report - {dist_name}", fontsize=14, fontweight='bold')
             plt.figtext(0.1, 0.85, f"Goal: {calc_mode} | Interval: {prob_mode}")
             plt.figtext(0.1, 0.82, f"Result: {res_val:.4f}")
-            
             new_ax = pdf_fig.add_axes([0.1, 0.3, 0.8, 0.4])
             new_ax.plot(x_plot, y_plot, color='#1565C0')
             new_ax.fill_between(x_plot, y_plot, where=mask, color=COLOR_SHADE, alpha=0.5)
@@ -222,7 +213,6 @@ try:
             mime="application/pdf",
             key=f"dl_btn_pdf_{clean_fn}_{st.session_state.reset_key}"
         )
-    
     with e3:
         st.button("🔄 Reset to Defaults", on_click=reset_app)
 
