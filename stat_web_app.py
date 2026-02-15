@@ -40,7 +40,6 @@ with col_type:
 is_inverse = "Inverse" in calc_mode
 
 # --- DYNAMIC DEFAULTS ENGINE ---
-# This ensures that whenever dist_name, calc_mode, or prob_mode changes, the inputs reset.
 p_col1, p_col2, p_col3 = st.columns(3)
 
 # Default Sample Sizes
@@ -78,9 +77,8 @@ if not is_inverse:
         v_low_def, v_high_def = 2.700, 19.023
         v_uni_def = 16.919
 else:
-    # Inverse mode defaults
     v_uni_def = 0.050
-    v_low_def, v_high_def = 0.025, 0.025 # Used for Area/Alpha
+    v_low_def, v_high_def = 0.025, 0.025 
 
 try:
     if dist_name == "Normal": dist = stats.norm(mu, sigma)
@@ -88,26 +86,32 @@ try:
     else: dist = stats.chi2(df)
 
     v1_plot, v2_plot = None, None
-    bound_choice = "Upper" # Default start-up
+    # STARTUP REQUIREMENT: Default Bound Type to Lower
+    bound_choice = "Lower" 
 
     if is_inverse and dist_name == "Chi-Square":
         with b_col1:
-            st.markdown(r"$\alpha$ represents the area to the right of the critical value.")
-            alpha_val = st.number_input(r"Probability, $\alpha$", value=0.050, format="%.3f", key=f"alpha_{prob_mode}_{st.session_state.reset_key}")
+            # UNIDIRECTIONAL: Phrase appears ABOVE input
             if prob_mode == "Unidirectional":
+                st.markdown(r"$\alpha$ represents the area to the right of the critical value.")
+                alpha_val = st.number_input(r"Probability, $\alpha$", value=0.050, format="%.3f", key=f"alpha_uni_{st.session_state.reset_key}")
                 v1_plot = dist.ppf(1 - alpha_val)
                 bound_choice = "Lower" 
+            
+            # AND/OR: Alpha input first, then explanatory phrase BELOW
             elif prob_mode == "AND":
+                alpha_val = st.number_input(r"Probability, $\alpha$", value=0.050, format="%.3f", key=f"alpha_and_{st.session_state.reset_key}")
                 st.info(r"The area remaining in each tail is $1/2 \alpha$.")
                 v1_plot, v2_plot = dist.ppf(alpha_val/2), dist.ppf(1 - alpha_val/2)
+                
             elif prob_mode == "OR":
+                alpha_val = st.number_input(r"Probability, $\alpha$", value=0.050, format="%.3f", key=f"alpha_or_{st.session_state.reset_key}")
                 st.info(r"The shaded area in each tail is $1/2 \alpha$.")
                 v1_plot, v2_plot = dist.ppf(alpha_val/2), dist.ppf(1 - alpha_val/2)
     else:
         with b_col1:
             if prob_mode == "Unidirectional":
-                bound_choice = st.selectbox("Bound Type", ["Lower", "Upper"], 
-                                            index=1 if (not is_inverse and dist_name=="Normal" and st.session_state.reset_key==0) else 0,
+                bound_choice = st.selectbox("Bound Type", ["Lower", "Upper"], index=0,
                                             key=f"bt_{dist_name}_{calc_mode}_{st.session_state.reset_key}")
                 label = "Probability (0 to 1)" if is_inverse else "Value (x)"
                 v1_raw = st.number_input(label, value=v_uni_def, format="%.3f", key=f"v1u_{dist_name}_{calc_mode}_{st.session_state.reset_key}")
@@ -154,7 +158,6 @@ try:
         if show_comp:
             ax.plot(x_plot, stats.norm.pdf(x_plot, mu, sigma), color='gray', ls=':', label="Normal Ref")
 
-    # Shading Logic
     if prob_mode == "Unidirectional":
         mask = (x_plot >= v1_plot) if bound_choice == "Lower" else (x_plot <= v1_plot)
         res_val = 1 - dist.cdf(v1_plot) if bound_choice == "Lower" else dist.cdf(v1_plot)
@@ -193,7 +196,6 @@ try:
     with e2:
         pdf_buf = io.BytesIO()
         with PdfPages(pdf_buf) as pdf:
-            # Create dedicated PDF figure to ensure rendering
             pdf_fig = plt.figure(figsize=(8.5, 11))
             plt.figtext(0.1, 0.9, f"Stat Report - {dist_name}", fontsize=14, fontweight='bold')
             plt.figtext(0.1, 0.85, f"Goal: {calc_mode} | Interval: {prob_mode}")
@@ -204,7 +206,6 @@ try:
             new_ax.fill_between(x_plot, y_plot, where=mask, color=COLOR_SHADE, alpha=0.5)
             new_ax.set_xticks(ticks)
             new_ax.set_xticklabels(labels, rotation=90)
-            
             pdf.savefig(pdf_fig)
             plt.close(pdf_fig)
         st.download_button("📄 Download PDF", pdf_buf.getvalue(), f"{file_name}.pdf", "application/pdf")
