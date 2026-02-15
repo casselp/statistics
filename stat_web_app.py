@@ -147,9 +147,7 @@ try:
         for i in [1, 2, 3]:
             ax.axvline(mu + i*sigma, color=COLOR_SD, ls='--', lw=1, alpha=0.4)
             ax.axvline(mu - i*sigma, color=COLOR_SD, ls='--', lw=1, alpha=0.4)
-        if show_comp:
-            ax.plot(x_plot, stats.norm.pdf(x_plot, mu, sigma), color='gray', ls=':', label="Normal Ref")
-
+    
     if prob_mode == "Unidirectional":
         mask = (x_plot >= v1_plot) if bound_choice == "Lower" else (x_plot <= v1_plot)
         res_val = 1 - dist.cdf(v1_plot) if bound_choice == "Lower" else dist.cdf(v1_plot)
@@ -169,7 +167,7 @@ try:
     ax.set_yticks([])
     ax.legend(prop={'size': 8}, loc='upper right')
 
-    # Prepare Image Buffer BEFORE st.pyplot (some backends clear the figure on show)
+    # Prep Image
     img_buf = io.BytesIO()
     fig.savefig(img_buf, format="png", dpi=300, bbox_inches='tight')
     img_data = img_buf.getvalue()
@@ -187,13 +185,12 @@ try:
 
     e1, e2, e3 = st.columns(3)
     with e1:
-        # Using a dynamic key forces the download button to refresh with the new file_name
         st.download_button(
             label="💾 Download Image",
             data=img_data,
             file_name=f"{clean_fn}.png",
             mime="image/png",
-            key=f"dl_img_{clean_fn}_{st.session_state.reset_key}"
+            key=f"btn_img_{clean_fn}" # Key change forces update
         )
     with e2:
         pdf_buf = io.BytesIO()
@@ -214,7 +211,7 @@ try:
             data=pdf_buf.getvalue(), 
             file_name=f"{clean_fn}.pdf", 
             mime="application/pdf",
-            key=f"dl_pdf_{clean_fn}_{st.session_state.reset_key}"
+            key=f"btn_pdf_{clean_fn}"
         )
     with e3:
         st.button("🔄 Reset to Defaults", on_click=reset_app)
