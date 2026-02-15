@@ -65,7 +65,7 @@ st.divider()
 st.header("2. Analysis Parameters")
 b_col1, b_col2 = st.columns(2)
 
-# Boundary Defaults
+# Determine Defaults based on conditions
 if not is_inverse:
     if dist_name != "Chi-Square":
         v_low_def, v_high_def = -1.000, 1.000
@@ -88,51 +88,52 @@ try:
     if is_inverse and dist_name == "Chi-Square":
         with b_col1:
             if prob_mode == "Unidirectional":
-                alpha_val = st.number_input("Probability, α", value=0.050, format="%.3f", key=f"alpha_uni_{st.session_state.reset_key}")
-                st.info("α represents the area to the right of the critical value.")
+                alpha_val = st.number_input(r"Probability, $\alpha$", value=0.050, format="%.3f", key=f"alpha_uni_{st.session_state.reset_key}")
+                st.info(r"$\alpha$ represents the area to the right of the critical value.")
                 v1_plot = dist.ppf(1 - alpha_val)
                 bound_choice = "Lower" 
             elif prob_mode == "AND":
-                alpha_val = st.number_input("Probability, α", value=0.050, format="%.3f", key=f"alpha_and_{st.session_state.reset_key}")
-                st.info("The area remaining in each tail is 1/2 α.")
+                alpha_val = st.number_input(r"Probability, $\alpha$", value=0.050, format="%.3f", key=f"alpha_and_{st.session_state.reset_key}")
+                st.info(r"The area remaining in each tail is $1/2 \alpha$.")
                 v1_plot, v2_plot = dist.ppf(alpha_val/2), dist.ppf(1 - alpha_val/2)
             elif prob_mode == "OR":
-                alpha_val = st.number_input("Probability, α", value=0.050, format="%.3f", key=f"alpha_or_{st.session_state.reset_key}")
-                st.info("The shaded area in each tail is 1/2 α.")
+                alpha_val = st.number_input(r"Probability, $\alpha$", value=0.050, format="%.3f", key=f"alpha_or_{st.session_state.reset_key}")
+                st.info(r"The shaded area in each tail is $1/2 \alpha$.")
                 v1_plot, v2_plot = dist.ppf(alpha_val/2), dist.ppf(1 - alpha_val/2)
     else:
         with b_col1:
             if prob_mode == "Unidirectional":
-                bound_choice = st.selectbox("Bound Type", ["Lower", "Upper"], index=0, key=f"bt_{st.session_state.reset_key}")
+                bound_choice = st.selectbox("Bound Type", ["Lower", "Upper"], index=0,
+                                            key=f"bt_{dist_name}_{calc_mode}_{st.session_state.reset_key}")
                 label = "Probability (0 to 1)" if is_inverse else "Value (x)"
-                v1_raw = st.number_input(label, value=v_uni_def, format="%.3f", key=f"v1u_{st.session_state.reset_key}")
+                v1_raw = st.number_input(label, value=v_uni_def, format="%.3f", key=f"v1u_{dist_name}_{calc_mode}_{st.session_state.reset_key}")
                 if is_inverse:
                     v1_plot = dist.ppf(1 - v1_raw) if bound_choice == "Lower" else dist.ppf(v1_raw)
                 else: v1_plot = v1_raw
             
             elif prob_mode == "AND":
                 if is_inverse:
-                    conf_c = st.number_input("Level of Confidence (c)", value=0.950, format="%.3f", key=f"conf_{st.session_state.reset_key}")
+                    conf_c = st.number_input("Level of Confidence (c)", value=0.950, format="%.3f", key=f"conf_{dist_name}_{st.session_state.reset_key}")
                     alpha = 1 - conf_c
                     v1_plot, v2_plot = dist.ppf(alpha/2), dist.ppf(1 - alpha/2)
                 else:
-                    v1_plot = st.number_input("Lower Value(x)", value=v_low_def, format="%.3f", key=f"vlow_{st.session_state.reset_key}")
-                    v2_plot = st.number_input("Upper Value(x)", value=v_high_def, format="%.3f", key=f"vhigh_{st.session_state.reset_key}")
+                    v1_plot = st.number_input("Lower Value(x)", value=v_low_def, format="%.3f", key=f"vlow_{dist_name}_{st.session_state.reset_key}")
+                    v2_plot = st.number_input("Upper Value(x)", value=v_high_def, format="%.3f", key=f"vhigh_{dist_name}_{st.session_state.reset_key}")
 
             elif prob_mode == "OR":
                 if is_inverse:
-                    v1_plot_area = st.number_input("Left-tail Area", value=0.025, format="%.3f", key=f"larea_{st.session_state.reset_key}")
+                    v1_plot_area = st.number_input("Left-tail Area", value=0.025, format="%.3f", key=f"larea_{dist_name}_{st.session_state.reset_key}")
                     v1_plot = dist.ppf(v1_plot_area)
                 else:
-                    v1_plot = st.number_input("Left-tail Bound(x)", value=v_low_def, format="%.3f", key=f"v1or_{st.session_state.reset_key}")
+                    v1_plot = st.number_input("Left-tail Bound(x)", value=v_low_def, format="%.3f", key=f"v1or_{dist_name}_{st.session_state.reset_key}")
 
         with b_col2:
             if prob_mode == "OR":
                 if is_inverse:
-                    v2_plot_area = st.number_input("Right-tail Area", value=0.025, format="%.3f", key=f"rarea_{st.session_state.reset_key}")
+                    v2_plot_area = st.number_input("Right-tail Area", value=0.025, format="%.3f", key=f"rarea_{dist_name}_{st.session_state.reset_key}")
                     v2_plot = dist.ppf(1 - v2_plot_area)
                 else:
-                    v2_plot = st.number_input("Right-tail Bound(x)", value=v_high_def, format="%.3f", key=f"v2or_{st.session_state.reset_key}")
+                    v2_plot = st.number_input("Right-tail Bound(x)", value=v_high_def, format="%.3f", key=f"v2or_{dist_name}_{st.session_state.reset_key}")
 
     # --- 3. GRAPHICAL AREA ---
     fig, ax = plt.subplots(figsize=(10, 5))
@@ -147,7 +148,9 @@ try:
         for i in [1, 2, 3]:
             ax.axvline(mu + i*sigma, color=COLOR_SD, ls='--', lw=1, alpha=0.4)
             ax.axvline(mu - i*sigma, color=COLOR_SD, ls='--', lw=1, alpha=0.4)
-    
+        if show_comp:
+            ax.plot(x_plot, stats.norm.pdf(x_plot, mu, sigma), color='gray', ls=':', label="Normal Ref")
+
     if prob_mode == "Unidirectional":
         mask = (x_plot >= v1_plot) if bound_choice == "Lower" else (x_plot <= v1_plot)
         res_val = 1 - dist.cdf(v1_plot) if bound_choice == "Lower" else dist.cdf(v1_plot)
@@ -166,12 +169,7 @@ try:
     ax.set_xticklabels(labels, rotation=90)
     ax.set_yticks([])
     ax.legend(prop={'size': 8}, loc='upper right')
-
-    # Prep Image
-    img_buf = io.BytesIO()
-    fig.savefig(img_buf, format="png", dpi=300, bbox_inches='tight')
-    img_data = img_buf.getvalue()
-
+    
     st.pyplot(fig)
 
     if is_inverse: st.success(f"**Critical Value(s):** {', '.join([f'{t:.3f}' for t in ticks])}")
@@ -185,12 +183,14 @@ try:
 
     e1, e2, e3 = st.columns(3)
     with e1:
+        img_buf = io.BytesIO()
+        fig.savefig(img_buf, format="png", dpi=300, bbox_inches='tight')
         st.download_button(
             label="💾 Download Image",
-            data=img_data,
+            data=img_buf.getvalue(),
             file_name=f"{clean_fn}.png",
             mime="image/png",
-            key=f"btn_img_{clean_fn}" # Key change forces update
+            key=f"dl_btn_img_{clean_fn}_{st.session_state.reset_key}"
         )
     with e2:
         pdf_buf = io.BytesIO()
@@ -211,7 +211,7 @@ try:
             data=pdf_buf.getvalue(), 
             file_name=f"{clean_fn}.pdf", 
             mime="application/pdf",
-            key=f"btn_pdf_{clean_fn}"
+            key=f"dl_btn_pdf_{clean_fn}_{st.session_state.reset_key}"
         )
     with e3:
         st.button("🔄 Reset to Defaults", on_click=reset_app)
